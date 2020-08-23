@@ -1,0 +1,101 @@
+---
+
+- name: Create group
+  group: 
+    name: "{{ tomcat_user_group }}"
+    state: present
+
+- name: Create a user 
+  user:
+    name: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    shell: /bin/sh
+    state: present     
+
+- name: Create folder
+  file:
+    path: "{{ tomcat_user_home }}"
+    state: directory
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    mode: 0755
+
+- name: Install Java package
+  yum:
+    name: "{{ java_package_name }}"
+    state: present
+    update_cache: yes
+
+- name: Java | Export environment variables
+  template:
+    src: openjdk.sh.j2
+    dest: /etc/profile.d/openjdk.sh
+
+- name: Java | Source environment variables
+  shell: source /etc/profile
+  args:
+    executable: /bin/bash
+  changed_when: false
+
+- name: Download tomcat 
+  get_url:         
+    url: "http://archive.apache.org/dist/tomcat/tomcat-{{ tomcat_version|first() }}/v{{ tomcat_version }}/bin/apache-tomcat-{{ tomcat_version }}.tar.gz"
+    dest: "/tmp/apache-tomcat-{{ tomcat_version }}.tar.gz"
+  register: tomcat_downloaded
+  
+- name: Extract tomcat
+  unarchive:
+    extra_opts: ['--strip-components=1', '--show-stored-names']
+    src: /tmp/apache-tomcat-{{ tomcat_version }}.tar.gz
+    dest: "{{ tomcat_user_home }}"
+    remote_src: yes
+  register: tomcat_extracted
+  when: tomcat_downloaded is changed
+
+- name: Change ownership of tomcat Install directory
+  file:
+    path: "{{ tomcat_user_home }}"
+    state: directory
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    mode: 0755
+    recurse: yes   
+
+- name: Copy tomcat service file
+  template:
+    src: tomcat.service.j2
+    dest: "/etc/systemd/system/{{ tomcat_service_name }}.service"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    mode: 0644   
+
+- name: Copy tomcat user template
+  template:
+    src: tomcat-user.xml.j2
+    dest: "{{ tomcat_home }}/conf/tomcat-user.xml"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    mode: 0755    
+
+- name: Copy manager content template
+  template:
+    src: tomcat-user.xml.j2
+    dest: "{{ tomcat_home }}/webapps/manager/META-INF/context.xml"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    mode: 0755    
+
+- name: Copy host manager content template
+  template:
+    src: manager-content.xml.j2
+    dest: "{{ tomcat_home }}/webapps/host-manager/META-INF/context.xml"
+    owner: "{{ tomcat_user }}"
+    group: "{{ tomcat_user_group }}"
+    mode: 0755    
+
+- name: start tomcat
+  service:
+    name: "{{tomcat_service_name}}"
+    state: started
+    enabled: yes
+  become: yes    

@@ -1,0 +1,65 @@
+---
+- name: Downloading Maven Binaries
+  get_url:
+    url: '{{ maven_download_url }}'
+    dest: '{{ maven_directory }}/{{ maven_name }}'
+    url_username: '{{ maven_download_username }}'
+    url_password: '{{ maven_download_password }}'
+
+- name: Unarchive Maven Binaries
+  unarchive:
+    src: '{{ maven_directory }}/{{ maven_name }}'
+    dest: '{{ maven_directory }}'
+    copy: no
+
+#- name: Remove old path configuration
+#  file:
+#    path: /etc/profile.d/maven.sh
+#    state: absent
+
+- name: Maven path configuration
+  lineinfile:
+    dest: /etc/profile.d/maven.sh
+    line: '{{ item.line }}'
+    create: yes
+    state: present
+  with_items:
+    - { line: 'M2_HOME={{ maven_directory }}/apache-maven-{{ maven_version }}' }
+    - { line: 'PATH=$PATH:$M2_HOME/bin' }   
+  #environment: "{{ java_home }}"
+  environment: 
+    JAVA_HOME: /usr/lib/jvm/jre  
+    
+- name: Install Git
+  yum:
+    name: git
+    state: present
+
+- name: Clone Git repository
+  git:
+    repo: "{{ git_repo }}"
+    dest: /opt/helloWorld
+    update: yes
+    version: master 
+    force: yes
+  ignore_error: yes         
+
+- name: Package the code
+  shell: 
+    cmd: mvn clean package
+    chdir: /opt/helloWorld
+  args:  
+    executable: /bin/bash
+  environment:
+    MAVEN_HOME: "{{ maven_home }}"
+    JAVA_HOME: "{{ java_home }}"
+    PATH: "{{ path }}"
+    #PATH: /usr/lib/jvm/jre/bin:/sbin:/bin:/usr/sbin:/usr/bin:/opt/apache-maven-3.6.3/bin
+    #PATH: "${JAVA_HOME}/bin:${M2_HOME}/bin:${PATH}"   
+  become: yes  
+
+- name: Copy artifacts to Tomcat
+  copy:
+    src: /opt/helloWorld/target/helloWorld.war
+    dest: /opt/tomcat/webapps
+    remote_src: true
