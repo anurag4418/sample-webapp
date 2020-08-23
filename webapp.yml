@@ -1,0 +1,8 @@
+- hosts: web_server
+  roles:
+     - tomcat
+     - webapp
+  become: yes
+  become_method: sudo
+  environment:
+    JAVA_HOME: '/usr/lib/jvm/jre'
