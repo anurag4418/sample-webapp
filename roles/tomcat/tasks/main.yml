@@ -26,12 +26,12 @@
     state: present
     update_cache: yes
 
-- name: Java | Export environment variables
+- name: Export environment variables
   template:
     src: openjdk.sh.j2
     dest: /etc/profile.d/openjdk.sh
 
-- name: Java | Source environment variables
+- name: Source environment variables
   shell: source /etc/profile
   args:
     executable: /bin/bash
