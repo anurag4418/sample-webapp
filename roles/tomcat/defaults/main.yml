@@ -10,13 +10,3 @@ tomcat_service_name: 'tomcat'
 tomcat_passwd: 'tomcat'
 
 
-
-
-tomcat_roles:
-  - manager-gui
-  - manager-script
-  - manager-jmx
-  - manager-status
-tomcat_users:
-  - name: tomcat
-    password: tomcat  
